@@ -3,6 +3,8 @@ from sklearn.preprocessing import Imputer
 
 ##########################################data reading###############################################
 train_data = pd.read_csv('data/train.csv')
+train_y = train_data.SalePrice
+train_data = train_data.drop('SalePrice',axis=1)
 test_data = pd.read_csv('data/test.csv')
 sample_num = train_data.shape[0]
 ############################################wash data##################################################
@@ -24,12 +26,14 @@ for col in cols_with_missing:
 #one-hot encode
 one_hot_train_data = pd.get_dummies(new_reduced_train_data)
 one_hot_test_data = pd.get_dummies(new_reduced_test_data)
-new_reduced_train_data, new_reduced_test_data =one_hot_train_data.align(one_hot_test_data,join='left',axis=1)
 #apply imputer
 imputer = Imputer()
-new_reduced_train_data = pd.DataFrame(imputer.fit_transform(new_reduced_train_data))
-new_reduced_test_data = pd.DataFrame(imputer.fit_transform(new_reduced_test_data))
-
+print(new_reduced_train_data.shape)
+new_reduced_train_data = pd.DataFrame(imputer.fit_transform(one_hot_train_data))
+print(new_reduced_test_data.shape)
+new_reduced_test_data = pd.DataFrame(imputer.fit_transform(one_hot_test_data))
+#still need to check the order
+new_reduced_train_data, new_reduced_test_data =new_reduced_train_data.align(new_reduced_test_data,join='left',axis=1)
 
 one_hot_train_data = pd.get_dummies(train_data)
 one_hot_test_data = pd.get_dummies(test_data)
