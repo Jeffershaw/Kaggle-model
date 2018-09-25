@@ -1,10 +1,16 @@
 import pandas as pd
 from sklearn.preprocessing import Imputer
+from sklearn.model_selection import cross_val_score
+from sklearn.grid_search import GridSearchCV
+import xgboost as xgb
+import numpy as np
+import sys
+from xgboost import XGBRegressor
 
 ##########################################data reading###############################################
 train_data = pd.read_csv('data/train.csv')
 train_y = train_data.SalePrice
-train_data = train_data.drop('SalePrice',axis=1)
+train_data = train_data.drop('SalePrice',axis=1) #split the y value
 test_data = pd.read_csv('data/test.csv')
 sample_num = train_data.shape[0]
 ############################################wash data##################################################
@@ -26,24 +32,23 @@ for col in cols_with_missing:
 #one-hot encode
 one_hot_train_data = pd.get_dummies(new_reduced_train_data)
 one_hot_test_data = pd.get_dummies(new_reduced_test_data)
+new_reduced_train_data, new_reduced_test_data =one_hot_train_data.align(one_hot_test_data,join='left',axis=1)
+#some one-hot encoding alignment would cause na value, therefore, they should be turned into 0
+new_reduced_test_data = new_reduced_test_data.fillna(0)
+
 #apply imputer
 imputer = Imputer()
 print(new_reduced_train_data.shape)
-new_reduced_train_data = pd.DataFrame(imputer.fit_transform(one_hot_train_data))
+new_reduced_train_data = pd.DataFrame(imputer.fit_transform(new_reduced_train_data))
 print(new_reduced_test_data.shape)
-new_reduced_test_data = pd.DataFrame(imputer.fit_transform(one_hot_test_data))
+new_reduced_test_data = pd.DataFrame(imputer.fit_transform(new_reduced_test_data))
 #still need to check the order
-new_reduced_train_data, new_reduced_test_data =new_reduced_train_data.align(new_reduced_test_data,join='left',axis=1)
-
-one_hot_train_data = pd.get_dummies(train_data)
-one_hot_test_data = pd.get_dummies(test_data)
-final_train, final_test =one_hot_train_data.align(one_hot_test_data,join='left',axis=1)
-new_data = train_data.copy()
-cols_missing=(col for col in new_data.columns
-                            if new_data[col].isnull().any())
-for col in cols_missing:
-    new_data[col+'_was_missing']=new_data[col].isnull()
-one_hot_new_data = pd.get_dummies(new_data)
-my_imputer = Imputer()
-new_data = my_imputer.fit_transform(one_hot_new_data)
-
+###########################################################regression(alchemy)################################################
+param_test1 = {
+ 'max_depth':[i for i in range(1,10,1)],
+ 'min_child_weight':[i for i in range(1,6,1)]
+}
+gsearch1= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01,gamma=0,subsample=0.8), 
+    param_grid = param_test1,scoring ='neg_mean_absolute_error',n_jobs=4,cv=5)
+model = XGBRegressor(n_estimators=1000,learning_rate=0.01,max_depth=3,min_child_weight=2)           #parameter to tune
+-1*np.mean(cross_val_score(model,new_reduced_train_data,train_y,scoring='neg_mean_absolute_error'))
