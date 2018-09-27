@@ -1,3 +1,4 @@
+#first try rank 1538, cv error 14582.382
 import pandas as pd
 from sklearn.preprocessing import Imputer
 from sklearn.model_selection import cross_val_score
@@ -44,37 +45,41 @@ print(new_reduced_test_data.shape)
 new_reduced_test_data = pd.DataFrame(imputer.fit_transform(new_reduced_test_data))
 #still need to check the order
 ###########################################################regression(alchemy)################################################
-param_test1 = {                                                         #find the max_depth and min_weight
+param_test1 = {                                                         #find the max_depth and min_weight  6 2
  'max_depth':[i for i in range(3,20,1)],
  'min_child_weight':[i for i in range(1,10,1)]
 }
 gsearch1= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01,gamma=0,subsample=0.8), 
     param_grid = param_test1,scoring ='neg_mean_absolute_error',n_jobs=4,cv=5)
 #model = XGBRegressor(n_estimators=1000,learning_rate=0.01,max_depth=3,min_child_weight=2)           #parameter to tune
--1*np.mean(cross_val_score(model,new_reduced_train_data,train_y,scoring='neg_mean_absolute_error'))
+#-1*np.mean(cross_val_score(model,new_reduced_train_data,train_y,scoring='neg_mean_absolute_error'))
+gsearch1.fit(new_reduced_train_data,train_y)
 
-param_test2 = {                                                         #find the gamma value
-    'gamma':[i/10.0 for i in range(0,5)]
+param_test2 = {                                                         #find the gamma value 0
+    'gamma':[i/10.0 for i in range(0,10)]
 }
-gsearch2= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01,subsample=0.8,max_depth=!!@!@), 
+gsearch2= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01,subsample=0.8,max_depth=6,min_child_weight=2), 
     param_grid = param_test2,scoring ='neg_mean_absolute_error',n_jobs=4,cv=5)
 
-param_test3 = {                                                         #find the gamma value
- 'subsample':[i/10.0 for i in range(6,10)],
- 'colsample_bytree':[i/10.0 for i in range(6,10)]
+param_test3 = {                                                         #find the gamma value    0.4 0.5
+ 'subsample':[i/10.0 for i in range(2,10)],
+ 'colsample_bytree':[i/10.0 for i in range(2,10)]
 }
-gsearch3= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01), 
+gsearch3= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01,subsample=0.8,max_depth=6,min_child_weight=2,gamma=0), 
     param_grid = param_test3,scoring ='neg_mean_absolute_error',n_jobs=4,cv=5)
 
-param_test4 = {
- 'subsample':[i/10.0 for i in range(6,10)],
- 'colsample_bytree':[i/10.0 for i in range(6,10)]
-}
-gsearch4= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01), 
-    param_grid = param_test4,scoring ='neg_mean_absolute_error',n_jobs=4,cv=5)
 
 param_test5 = {
  'reg_alpha':[1e-5, 1e-2, 0.1, 1, 100]
 }
-gsearch5= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01), 
+gsearch5= GridSearchCV(estimator = XGBRegressor(n_estimators=1000,learning_rate=0.01,subsample=0.4,max_depth=6,min_child_weight=2,gamma=0,colsample_bytree=0.5,reg_alpha=1), 
     param_grid = param_test5,scoring ='neg_mean_absolute_error',n_jobs=4,cv=5)
+
+#finally we got the gold
+regressor = XGBRegressor(n_estimators=1000,learning_rate=0.01,subsample=0.4,max_depth=6,min_child_weight=2,gamma=0,colsample_bytree=0.5,reg_alpha=1)
+regressor.fit(new_reduced_train_data,train_y)
+res = regressor.predict(new_reduced_test_data)
+ret_data = pd.DataFrame()
+ret_data['Id'] = new_reduced_test_data[0].astype(int)
+ret_data['SalePrice'] = regressor.predict(new_reduced_test_data)
+ret_data.to_csv('prediction.csv',index=False)
